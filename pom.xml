@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fi.metatavu.wso2.liquibase</groupId>
   <artifactId>liquibase-mediator</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
   <packaging>bundle</packaging>
   <name>WSO2 Liquibase mediator</name>
   <description>WSO2 mediator for Liquibase database migrations</description>
