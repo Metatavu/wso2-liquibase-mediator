@@ -8,8 +8,12 @@ import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
+
+import javax.sql.DataSource;
 
 import org.apache.synapse.MessageContext;
+import org.apache.synapse.commons.datasource.DataSourceFinder;
 import org.apache.synapse.mediators.AbstractMediator;
 
 import liquibase.Liquibase;
@@ -26,11 +30,30 @@ import liquibase.resource.FileSystemResourceAccessor;
  */
 public class LiquibaseMediator extends AbstractMediator {
   
+  private String dsName;
   private String user;
   private String password;
   private String url;
   private String changeLog;
   private String driver;
+  
+  /**
+   * Data source JNDI lookup name
+   * 
+   * @return Data source JNDI lookup name
+   */
+  public String getDsName() {
+    return dsName;
+  }
+  
+  /**
+   * Sets data source JNDI lookup name
+   * 
+   * @param dsName data source JNDI lookup name
+   */
+  public void setDsName(String dsName) {
+    this.dsName = dsName;
+  }
   
   /**
    * Returns "user" setting value
@@ -129,29 +152,31 @@ public class LiquibaseMediator extends AbstractMediator {
   * @return true
   */
   public boolean mediate(MessageContext context) {
-    if (getUser() == null) {
-      log.error("User is required");
-      return false;
-    }
-    
-    if (getPassword() == null) {
-      log.error("Password is required");
-      return false;
-    }
-
-    if (getUrl() == null) {
-      log.error("URL is required");
-      return false;
-    }
-    
     if (getChangeLog() == null) {
-      log.error("ChangeLog is required");
+      log.error("ChangeLog is required ");
       return false;
     }
-
-    if (getDriver() == null) {
-      log.error("Driver is required");
-      return false;
+    
+    if (getDsName() == null) {
+      if (getUser() == null) {
+        log.error("User is required when DSName is not provided");
+        return false;
+      }
+      
+      if (getPassword() == null) {
+        log.error("Password is required when DSName is not provided");
+        return false;
+      }
+  
+      if (getUrl() == null) {
+        log.error("URL is required when DSName is not provided");
+        return false;
+      }
+  
+      if (getDriver() == null) {
+        log.error("Driver is required when DSName is not provided");
+        return false;
+      }
     }
     
     File parentDirectory;
@@ -174,31 +199,20 @@ public class LiquibaseMediator extends AbstractMediator {
     
     try {
       Liquibase liquibase = null;
-      Connection connection = null;
-      try (FileOutputStream fileStream = new FileOutputStream(changeLogFile)) {
+      
+      try (Connection connection = getConnection(); FileOutputStream fileStream = new FileOutputStream(changeLogFile)) {
         fileStream.write(getChangeLog().getBytes(StandardCharsets.UTF_8));
         
-        Class.forName(getDriver()).newInstance();
-        
-        connection = DriverManager.getConnection(getUrl(), getUser(), getPassword());
         Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
         
         liquibase = new Liquibase(changeLogFile.getName(), new FileSystemResourceAccessor(parentDirectory.getAbsolutePath()), database);
         liquibase.update("main");
-      } catch (SQLException | LiquibaseException e) {
-        log.error("Failed to run migrations", e);
-      } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-        log.error("Failed to initialize driver", e);
       } catch (IOException e) {
         log.error("Failed to read changelog", e);
-      } finally {
-        if (connection != null) {
-          try {
-            connection.rollback();
-            connection.close();
-          } catch (SQLException e) {
-          }
-        }
+      } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+        log.error("Failed to initialize driver", e);
+      } catch (LiquibaseException | SQLException e) {
+        log.error("Failed to run migrations", e);
       }
     } finally {
       try {
@@ -208,6 +222,26 @@ public class LiquibaseMediator extends AbstractMediator {
     }
 
     return true;
+  }
+
+  /**
+   * Opens database connection 
+   * 
+   * @return database connection
+   * @throws SQLException SQL thrown when connection opening fails
+   * @throws InstantiationException thrown when database driver initialization fails
+   * @throws IllegalAccessException thrown when database driver initialization fails
+   * @throws ClassNotFoundException thrown when database driver initialization fails
+   */
+  private Connection getConnection() throws SQLException, InstantiationException, IllegalAccessException, ClassNotFoundException {
+    if (getDsName() != null) {
+      DataSource dataSource = DataSourceFinder.find(getDsName(), new Properties());
+      return dataSource.getConnection();
+    }
+   
+    Class.forName(getDriver()).newInstance();
+    
+    return DriverManager.getConnection(getUrl(), getUser(), getPassword());
   }
   
 }
