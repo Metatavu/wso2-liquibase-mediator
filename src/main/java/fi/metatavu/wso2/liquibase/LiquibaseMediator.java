@@ -152,73 +152,80 @@ public class LiquibaseMediator extends AbstractMediator {
   * @return true
   */
   public boolean mediate(MessageContext context) {
-    if (getChangeLog() == null) {
-      log.error("ChangeLog is required ");
-      return false;
-    }
+    System.out.println("mediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediatemediate");
     
-    if (getDsName() == null) {
-      if (getUser() == null) {
-        log.error("User is required when DSName is not provided");
+    try {
+      
+      if (getChangeLog() == null) {
+        log.error("ChangeLog is required ");
         return false;
       }
       
-      if (getPassword() == null) {
-        log.error("Password is required when DSName is not provided");
-        return false;
-      }
-  
-      if (getUrl() == null) {
-        log.error("URL is required when DSName is not provided");
-        return false;
-      }
-  
-      if (getDriver() == null) {
-        log.error("Driver is required when DSName is not provided");
-        return false;
-      }
-    }
+      if (getDsName() == null) {
+        if (getUser() == null) {
+          log.error("User is required when DSName is not provided");
+          return false;
+        }
+        
+        if (getPassword() == null) {
+          log.error("Password is required when DSName is not provided");
+          return false;
+        }
     
-    File parentDirectory;
-    try {
-      parentDirectory = Files.createTempDirectory("changelog").toFile();
-    } catch (IOException e) {
-      log.error("Failed to create changelog directory");
-      return false;
-    }
-
-    File changeLogFile = new File(parentDirectory, "changelog.xml");
-    if (!changeLogFile.exists()) {
-      try {
-        changeLogFile.createNewFile();
-      } catch (IOException e) {
-        log.error("Failed to create changelog file");
-        return false;
-      }
-    }
+        if (getUrl() == null) {
+          log.error("URL is required when DSName is not provided");
+          return false;
+        }
     
-    try {
-      Liquibase liquibase = null;
+        if (getDriver() == null) {
+          log.error("Driver is required when DSName is not provided");
+          return false;
+        }
+      }
       
-      try (Connection connection = getConnection(); FileOutputStream fileStream = new FileOutputStream(changeLogFile)) {
-        fileStream.write(getChangeLog().getBytes(StandardCharsets.UTF_8));
-        
-        Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
-        
-        liquibase = new Liquibase(changeLogFile.getName(), new FileSystemResourceAccessor(parentDirectory.getAbsolutePath()), database);
-        liquibase.update("main");
-      } catch (IOException e) {
-        log.error("Failed to read changelog", e);
-      } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-        log.error("Failed to initialize driver", e);
-      } catch (LiquibaseException | SQLException e) {
-        log.error("Failed to run migrations", e);
-      }
-    } finally {
+      File parentDirectory;
       try {
-        Files.delete(changeLogFile.toPath());
+        parentDirectory = Files.createTempDirectory("changelog").toFile();
       } catch (IOException e) {
+        log.error("Failed to create changelog directory");
+        return false;
       }
+  
+      File changeLogFile = new File(parentDirectory, "changelog.xml");
+      if (!changeLogFile.exists()) {
+        try {
+          changeLogFile.createNewFile();
+        } catch (IOException e) {
+          log.error("Failed to create changelog file");
+          return false;
+        }
+      }
+      
+      try {
+        Liquibase liquibase = null;
+        
+        try (Connection connection = getConnection(); FileOutputStream fileStream = new FileOutputStream(changeLogFile)) {
+          fileStream.write(getChangeLog().getBytes(StandardCharsets.UTF_8));
+          
+          Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
+          
+          liquibase = new Liquibase(changeLogFile.getName(), new FileSystemResourceAccessor(parentDirectory.getAbsolutePath()), database);
+          liquibase.update("main");
+        } catch (IOException e) {
+          log.error("Failed to read changelog", e);
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+          log.error("Failed to initialize driver", e);
+        } catch (LiquibaseException | SQLException e) {
+          log.error("Failed to run migrations", e);
+        }
+      } finally {
+        try {
+          Files.delete(changeLogFile.toPath());
+        } catch (IOException e) {
+        }
+      }
+    } catch (Throwable t) {
+      log.error("Failed to run migrations", t);
     }
 
     return true;
