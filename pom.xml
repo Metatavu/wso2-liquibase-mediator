@@ -39,7 +39,7 @@
     <!-- Versions -->
 
     <synapse.version>2.1.1-wso2v5</synapse.version>
-    <liquibase.version>3.8.0</liquibase.version>
+    <liquibase.version>4.8.0</liquibase.version>
   </properties>
   
   <issueManagement>
